@@ -19,9 +19,6 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   }
 });
 
-// You need to export an object to set up your config
-// Go to https://hardhat.org/config/ to learn more
-
 const config: HardhatUserConfig = {
   solidity: "0.8.4",
   networks: {
@@ -29,6 +26,13 @@ const config: HardhatUserConfig = {
       url: process.env.ROPSTEN_URL || "",
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
+    hardhat: {
+      chainId: 321,
+      gasPrice: 100e9,
+      forking: {
+        url: process.env.MAINNET_URL ? process.env.MAINNET_URL : "https://bsc-dataseed.binance.org/",
+      },
     },
   },
   gasReporter: {
