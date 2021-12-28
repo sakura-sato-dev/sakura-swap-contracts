@@ -30,9 +30,28 @@ export const balanceOf = async (owner: SignerWithAddress, token: string, account
 }
 
 export const deposit = async (sakuraSwap: SakuraSwap, token: string, account: string) => {
-    await (await sakuraSwap.addSupportedToken(token, "Sakura Sushi", "sakSUSHI")).wait();
+    await (await sakuraSwap.addSupportedToken(token, "Mock Name", "SYMBOL")).wait();
     const signer = await impersonateAddress(account);
     await approve(token, sakuraSwap.address, signer);
     await (await sakuraSwap.connect(signer).deposit(token, scale(100))).wait();
 }
 
+export const amountIn = async (sakuraSwap: SakuraSwap, tokenIn: string, tokenOut: string, amount: BigNumber = scale(10)) => {
+    return BigNumber.from(await sakuraSwap.amountIn(tokenIn, tokenOut, amount));
+}
+
+export const amountOut = async (sakuraSwap: SakuraSwap, tokenIn: string, tokenOut: string, amount: BigNumber = scale(10)) => {
+    return BigNumber.from(await sakuraSwap.amountOut(tokenIn, tokenOut, amount));
+}
+
+export const swapIn = async (sakuraSwap: SakuraSwap, tokenIn: string, tokenOut: string, account: string, amount: BigNumber = scale(10)) => {
+    const signer = await impersonateAddress(account);
+    await approve(tokenIn, sakuraSwap.address, signer);
+    await (await sakuraSwap.connect(signer).swapIn(tokenIn, tokenOut, amount)).wait();
+}
+
+export const swapOut = async (sakuraSwap: SakuraSwap, tokenIn: string, tokenOut: string, account: string, amount: BigNumber = scale(10)) => {
+    const signer = await impersonateAddress(account);
+    await approve(tokenIn, sakuraSwap.address, signer);
+    await (await sakuraSwap.connect(signer).swapOut(tokenIn, tokenOut, amount)).wait();
+}
