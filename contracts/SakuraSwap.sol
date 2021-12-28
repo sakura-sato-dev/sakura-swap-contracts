@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+
 import "./LpToken.sol";
 
 // TODO Add interface
@@ -18,6 +20,7 @@ contract SakuraSwap is Ownable {
     EnumerableSet.AddressSet private _supportedTokens;
 
     mapping(address => LpToken) public lpTokens;
+    mapping(address => AggregatorV3Interface) public oracles;
 
     constructor() {}
 
@@ -33,11 +36,14 @@ contract SakuraSwap is Ownable {
     function addSupportedToken(
         address token,
         string memory name,
-        string memory symbol
+        string memory symbol,
+        address oracle
     ) external onlyOwner {
         // TODO Check is supported by Yearn
         // TODO Check is supported by Chainlink
         require(!_supportedTokens.contains(token), "Token already supported");
+        oracles[token] = AggregatorV3Interface(oracle);
+        require(_getLatestPrice(token) > 0, "Invalid oracle");
         lpTokens[token] = new LpToken(name, symbol);
         _supportedTokens.add(token);
     }
@@ -51,71 +57,85 @@ contract SakuraSwap is Ownable {
     function swapIn(
         address tokenIn,
         address tokenOut,
-        uint256 amountIn_
+        uint256 amountIn
     ) external returns (uint256) {
-        return swapInWithMinOut(tokenIn, tokenOut, amountIn_, 0);
+        return swapInWithMinOut(tokenIn, tokenOut, amountIn, 0);
     }
 
     function swapInWithMinOut(
         address tokenIn,
         address tokenOut,
-        uint256 amountIn_,
+        uint256 amountIn,
         uint256 minAmountOut
     ) public returns (uint256) {
         require(_supportedTokens.contains(tokenIn), "Token not supported");
         require(_supportedTokens.contains(tokenOut), "Token not supported");
-        uint256 amountOut_ = amountOut(tokenIn, tokenOut, amountIn_);
-        require(amountOut_ >= minAmountOut, "Amount below minimum"); // TODO Test
+        uint256 amountOut = getAmountOut(tokenIn, tokenOut, amountIn);
+        require(amountOut >= minAmountOut, "Amount below minimum"); // TODO Test
         require(
-            IERC20(tokenOut).balanceOf(address(this)) > amountOut_,
+            IERC20(tokenOut).balanceOf(address(this)) > amountOut,
             "Insufficient liquidity"
         ); // TODO Test
-        IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn_);
-        IERC20(tokenOut).safeTransfer(msg.sender, amountOut_);
-        return amountOut_;
+        IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+        IERC20(tokenOut).safeTransfer(msg.sender, amountOut);
+        return amountOut;
     }
 
     function swapOut(
         address tokenIn,
         address tokenOut,
-        uint256 amountOut_
+        uint256 amountOut
     ) external returns (uint256) {
         return
-            swapOutWithMaxIn(tokenIn, tokenOut, amountOut_, type(uint256).max);
+            swapOutWithMaxIn(tokenIn, tokenOut, amountOut, type(uint256).max);
     }
 
     function swapOutWithMaxIn(
         address tokenIn,
         address tokenOut,
-        uint256 amountOut_,
+        uint256 amountOut,
         uint256 maxAmountIn
     ) public returns (uint256) {
         require(_supportedTokens.contains(tokenIn), "Token not supported");
         require(_supportedTokens.contains(tokenOut), "Token not supported");
-        uint256 amountIn_ = amountIn(tokenIn, tokenOut, amountOut_);
-        require(amountIn_ <= maxAmountIn, "Amount above maximum"); // TODO Test
+        uint256 amountIn = getAmountIn(tokenIn, tokenOut, amountOut);
+        require(amountIn <= maxAmountIn, "Amount above maximum"); // TODO Test
         require(
-            IERC20(tokenOut).balanceOf(address(this)) > amountOut_,
+            IERC20(tokenOut).balanceOf(address(this)) > amountOut,
             "Insufficient liquidity"
         ); // TODO Test
-        IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn_);
-        IERC20(tokenOut).safeTransfer(msg.sender, amountOut_);
-        return amountIn_;
+        IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+        IERC20(tokenOut).safeTransfer(msg.sender, amountOut);
+        return amountIn;
     }
 
-    function amountOut(
+    function getAmountOut(
         address tokenIn,
         address tokenOut,
         uint256 amountIn
     ) public view returns (uint256) {
-        return amountIn;
+        return (amountIn * getExchanageRate(tokenIn, tokenOut)) / 1e18;
     }
 
-    function amountIn(
+    function getAmountIn(
         address tokenIn,
         address tokenOut,
         uint256 amountOut
     ) public view returns (uint256) {
-        return amountOut;
+        return (amountOut * getExchanageRate(tokenOut, tokenIn)) / 1e18;
+    }
+
+    function getExchanageRate(address tokenIn, address tokenOut)
+        public
+        view
+        returns (uint256)
+    {
+        return (_getLatestPrice(tokenIn) * 1e18) / _getLatestPrice(tokenOut);
+    }
+
+    function _getLatestPrice(address token) internal view returns (uint256) {
+        AggregatorV3Interface oracle = oracles[token];
+        (, int256 price, , , ) = oracle.latestRoundData();
+        return uint256(price) * 10**(18 - oracle.decimals());
     }
 }
