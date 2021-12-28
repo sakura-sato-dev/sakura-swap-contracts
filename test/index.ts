@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
 import { SakuraSwap } from "../typechain";
-import { approve, balanceOf, impersonateAddress, scale } from "./utils";
+import { balanceOf, deposit, scale } from "./utils";
 
 const SUSHI = "0x6B3595068778DD592e39A122f4f5a5cF09C90fE2"
 const YFI = "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e"
@@ -61,7 +61,7 @@ describe("Sakura Swap Contract", () => {
 
   describe("Depositing", () => {
     it("Should have SUSHI balance for impersonator", async () => {
-      expect(await balanceOf(owner, SUSHI, SUSHI_OWNER)).to.not.equal(0);
+      expect((await balanceOf(owner, SUSHI, SUSHI_OWNER)).gt(BigNumber.from(0))).to.be.true;
     })
     it("Should revert for unsupported token", async () => {
       await expect(
@@ -69,16 +69,13 @@ describe("Sakura Swap Contract", () => {
       ).to.be.revertedWith("Token not supported");
     })
     it("Should deposit SUSHI", async () => {
-      await (await sakuraSwap.addSupportedToken(SUSHI, "Sakura Sushi", "sakSUSHI")).wait();
-      const signer = await impersonateAddress("0xd96Dd2337d964514Eb7E2E50d8Eea0d846feC960");
-      await approve(SUSHI, sakuraSwap.address, signer);
       const userBalanceBefore = await balanceOf(owner, SUSHI, SUSHI_OWNER);
-      await (await sakuraSwap.connect(signer).deposit(SUSHI, scale(100))).wait();
+      await deposit(sakuraSwap, SUSHI, SUSHI_OWNER);
       const userBalanceAfter = await balanceOf(owner, SUSHI, SUSHI_OWNER);
-      expect(BigNumber.from(userBalanceBefore).sub(BigNumber.from(userBalanceAfter))).to.equal(scale(100));
-      expect(BigNumber.from(await balanceOf(owner, SUSHI, sakuraSwap.address))).to.equal(scale(100));
+      expect(userBalanceBefore.sub(userBalanceAfter)).to.equal(scale(100));
+      expect(await balanceOf(owner, SUSHI, sakuraSwap.address)).to.equal(scale(100));
       const lpToken = await sakuraSwap.lpTokens(SUSHI);
-      expect(BigNumber.from(await balanceOf(owner, lpToken, SUSHI_OWNER))).to.equal(scale(100));
+      expect(await balanceOf(owner, lpToken, SUSHI_OWNER)).to.equal(scale(100));
     })
   })
 })
