@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
 import { SakuraSwap } from "../typechain";
-import { amountIn, amountOut, balanceOf, deposit, scale, swapIn, swapOut } from "./utils";
+import { addSupportedToken, getAmountIn, getAmountOut, balanceOf, deposit, scale, swapIn, swapOut, getExchangeRate } from "./utils";
 
 const SUSHI = "0x6B3595068778DD592e39A122f4f5a5cF09C90fE2"
 const YFI = "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e"
@@ -44,18 +44,18 @@ describe("Sakura Swap Contract", () => {
     })
     it("Should support adding", async () => {
       expect(await sakuraSwap.supportedTokens()).to.be.empty;
-      await (await sakuraSwap.addSupportedToken(SUSHI, "Sakura Sushi", "sakSUSHI")).wait();
+      await addSupportedToken(sakuraSwap, SUSHI);
       expect(await sakuraSwap.supportedTokens()).to.eql([SUSHI]);
       const sushiLpToken = await ethers.getContractAt("LpToken", await sakuraSwap.lpTokens(SUSHI));
       expect(await sushiLpToken.name()).to.equal("Sakura Sushi");
       expect(await sushiLpToken.symbol()).to.equal("sakSUSHI");
-      await (await sakuraSwap.addSupportedToken(YFI, "Sakura YFI", "sakYFI")).wait();
+      await addSupportedToken(sakuraSwap, YFI);
       expect(await sakuraSwap.supportedTokens()).to.eql([SUSHI, YFI]);
     })
     it("Should revert already supported", async () => {
-      await (await sakuraSwap.addSupportedToken(YFI, "Sakura YFI", "sakYFI")).wait();
+      await addSupportedToken(sakuraSwap, YFI);
       await expect(
-        sakuraSwap.addSupportedToken(YFI, "Sakura YFI", "sakYFI")
+        sakuraSwap.addSupportedToken(YFI, "Sakura YFI", "sakYFI", SUSHI)
       ).to.be.revertedWith("Token already supported");
     })
   });
@@ -99,12 +99,19 @@ describe("Sakura Swap Contract", () => {
         sakuraSwap.swapIn(SUSHI, YFI, scale(10))
       ).to.be.revertedWith("Token not supported");
     })
+    it("Should get exchange rate", async () => {
+      addSupportedToken(sakuraSwap, SUSHI);
+      addSupportedToken(sakuraSwap, YFI);
+      const exchnageRate = await getExchangeRate(sakuraSwap, YFI, SUSHI);
+      expect(exchnageRate.gt(scale(1000))).to.be.true;
+      expect(exchnageRate.lt(scale(10000))).to.be.true;
+    })
     it("Should swap in", async () => {
       await deposit(sakuraSwap, SUSHI, SUSHI_OWNER);
       await deposit(sakuraSwap, YFI, YFI_OWNER);
       const sushiBalanceBefore = await balanceOf(owner, SUSHI, SUSHI_OWNER);
       const yfiBalanceBefore = await balanceOf(owner, YFI, SUSHI_OWNER);
-      const expected = await amountOut(sakuraSwap, SUSHI, YFI);
+      const expected = await getAmountOut(sakuraSwap, SUSHI, YFI);
       await swapIn(sakuraSwap, SUSHI, YFI, SUSHI_OWNER);
       const sushiBalanceAfter = await balanceOf(owner, SUSHI, SUSHI_OWNER);
       const yfiBalanceAfter = await balanceOf(owner, YFI, SUSHI_OWNER);
@@ -116,8 +123,8 @@ describe("Sakura Swap Contract", () => {
       await deposit(sakuraSwap, YFI, YFI_OWNER);
       const sushiBalanceBefore = await balanceOf(owner, SUSHI, SUSHI_OWNER);
       const yfiBalanceBefore = await balanceOf(owner, YFI, SUSHI_OWNER);
-      const needed = await amountIn(sakuraSwap, SUSHI, YFI);
-      await swapOut(sakuraSwap, SUSHI, YFI, SUSHI_OWNER, needed);
+      const needed = await getAmountIn(sakuraSwap, SUSHI, YFI);
+      await swapOut(sakuraSwap, SUSHI, YFI, SUSHI_OWNER, scale(10));
       const sushiBalanceAfter = await balanceOf(owner, SUSHI, SUSHI_OWNER);
       const yfiBalanceAfter = await balanceOf(owner, YFI, SUSHI_OWNER);
       expect(sushiBalanceBefore.sub(sushiBalanceAfter)).to.equal(needed);
