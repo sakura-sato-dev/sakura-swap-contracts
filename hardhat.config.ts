@@ -29,7 +29,7 @@ const config: HardhatUserConfig = {
     },
     hardhat: {
       chainId: 321,
-      gasPrice: 200e9,
+      gasPrice: 1000e9,
       forking: {
         url: process.env.MAINNET_URL ? process.env.MAINNET_URL : "https://bsc-dataseed.binance.org/",
       },
