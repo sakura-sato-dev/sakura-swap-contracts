@@ -1,5 +1,6 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
+import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
 import { SakuraSwap } from "../typechain";
 import { addSupportedToken, getAmountIn, getAmountOut, balanceOf, deposit, scale, swapIn, swapOut, getExchangeRate, setBaseFee, setImbalanceFee, scaledMul, getBaseFee, getImbalanceFee, scaledDiv, } from "./utils";
@@ -32,72 +33,72 @@ describe("Sakura Swap Contract", () => {
     });
   });
 
-  // describe("Supported Tokens", () => {
-  //   it("Should be empty by default", async () => {
-  //     expect(await sakuraSwap.supportedTokens()).to.be.empty;
-  //   })
-  //   it("Should support adding", async () => {
-  //     expect(await sakuraSwap.supportedTokens()).to.be.empty;
-  //     await addSupportedToken(sakuraSwap, SUSHI);
-  //     expect(await sakuraSwap.supportedTokens()).to.eql([SUSHI]);
-  //     const sushiLpToken = await ethers.getContractAt("LpToken", await sakuraSwap.lpTokens(SUSHI));
-  //     expect(await sushiLpToken.name()).to.equal("Sakura Sushi");
-  //     expect(await sushiLpToken.symbol()).to.equal("sakSUSHI");
-  //     await addSupportedToken(sakuraSwap, YFI);
-  //     expect(await sakuraSwap.supportedTokens()).to.eql([SUSHI, YFI]);
-  //   })
-  //   it("Should revert already supported", async () => {
-  //     await addSupportedToken(sakuraSwap, YFI);
-  //     await expect(
-  //       sakuraSwap.addSupportedToken(YFI, "Sakura YFI", "sakYFI", SUSHI)
-  //     ).to.be.revertedWith("Token already supported");
-  //   })
-  // });
+  describe("Supported Tokens", () => {
+    it("Should be empty by default", async () => {
+      expect(await sakuraSwap.supportedTokens()).to.be.empty;
+    })
+    it("Should support adding", async () => {
+      expect(await sakuraSwap.supportedTokens()).to.be.empty;
+      await addSupportedToken(sakuraSwap, SUSHI);
+      expect(await sakuraSwap.supportedTokens()).to.eql([SUSHI]);
+      const sushiLpToken = await ethers.getContractAt("LpToken", await sakuraSwap.lpTokens(SUSHI));
+      expect(await sushiLpToken.name()).to.equal("Sakura Sushi");
+      expect(await sushiLpToken.symbol()).to.equal("sakSUSHI");
+      await addSupportedToken(sakuraSwap, YFI);
+      expect(await sakuraSwap.supportedTokens()).to.eql([SUSHI, YFI]);
+    })
+    it("Should revert already supported", async () => {
+      await addSupportedToken(sakuraSwap, YFI);
+      await expect(
+        sakuraSwap.addSupportedToken(YFI, "Sakura YFI", "sakYFI", SUSHI)
+      ).to.be.revertedWith("Token already supported");
+    })
+  });
 
-  // describe("Depositing", () => {
-  //   it("Should have SUSHI balance for impersonator", async () => {
-  //     expect((await balanceOf(owner, SUSHI, SUSHI_OWNER)).gt(BigNumber.from(0))).to.be.true;
-  //   })
-  //   it("Should revert for unsupported token", async () => {
-  //     await expect(
-  //       sakuraSwap.deposit(SUSHI, scale(100))
-  //     ).to.be.revertedWith("Token not supported");
-  //   })
-  //   it("Should deposit SUSHI", async () => {
-  //     const userBalanceBefore = await balanceOf(owner, SUSHI, SUSHI_OWNER);
-  //     await deposit(sakuraSwap, SUSHI, SUSHI_OWNER);
-  //     const userBalanceAfter = await balanceOf(owner, SUSHI, SUSHI_OWNER);
-  //     expect(userBalanceBefore.sub(userBalanceAfter)).to.equal(scale(100));
-  //     expect(await balanceOf(owner, SUSHI, sakuraSwap.address)).to.equal(scale(100));
-  //     const lpToken = await sakuraSwap.lpTokens(SUSHI);
-  //     expect(await balanceOf(owner, lpToken, SUSHI_OWNER)).to.equal(scale(100));
-  //   })
-  // })
+  describe("Depositing", () => {
+    it("Should have SUSHI balance for impersonator", async () => {
+      expect((await balanceOf(owner, SUSHI, SUSHI_OWNER)).gt(BigNumber.from(0))).to.be.true;
+    })
+    it("Should revert for unsupported token", async () => {
+      await expect(
+        sakuraSwap.deposit(SUSHI, scale(100))
+      ).to.be.revertedWith("Token not supported");
+    })
+    it("Should deposit SUSHI", async () => {
+      const userBalanceBefore = await balanceOf(owner, SUSHI, SUSHI_OWNER);
+      await deposit(sakuraSwap, SUSHI, SUSHI_OWNER);
+      const userBalanceAfter = await balanceOf(owner, SUSHI, SUSHI_OWNER);
+      expect(userBalanceBefore.sub(userBalanceAfter)).to.equal(scale(100));
+      expect(await balanceOf(owner, SUSHI, sakuraSwap.address)).to.equal(scale(100));
+      const lpToken = await sakuraSwap.lpTokens(SUSHI);
+      expect(await balanceOf(owner, lpToken, SUSHI_OWNER)).to.equal(scale(100));
+    })
+  })
 
-  // describe("Admin", () => {
-  //   it("Should revert setting base fee for non owner", async () => {
-  //     await expect(
-  //       sakuraSwap.connect(addr1).setBaseFee(scale(0.003))
-  //     ).to.be.revertedWith("Ownable: caller is not the owner");
-  //   })
-  //   it("Should revert setting base fee to same value", async () => {
-  //     await setBaseFee(sakuraSwap, scale(0.003));
-  //     await expect(
-  //       sakuraSwap.setBaseFee(scale(0.003))
-  //     ).to.be.revertedWith("Same as current value");
-  //   })
-  //   it("Should revert setting imbalance fee for non owner", async () => {
-  //     await expect(
-  //       sakuraSwap.connect(addr1).setImbalanceFee(scale(0.003))
-  //     ).to.be.revertedWith("Ownable: caller is not the owner");
-  //   })
-  //   it("Should revert setting base fee to same value", async () => {
-  //     await setImbalanceFee(sakuraSwap, scale(0.003));
-  //     await expect(
-  //       sakuraSwap.setImbalanceFee(scale(0.003))
-  //     ).to.be.revertedWith("Same as current value");
-  //   })
-  // })
+  describe("Admin", () => {
+    it("Should revert setting base fee for non owner", async () => {
+      await expect(
+        sakuraSwap.connect(addr1).setBaseFee(scale(0.003))
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    })
+    it("Should revert setting base fee to same value", async () => {
+      await setBaseFee(sakuraSwap, scale(0.003));
+      await expect(
+        sakuraSwap.setBaseFee(scale(0.003))
+      ).to.be.revertedWith("Same as current value");
+    })
+    it("Should revert setting imbalance fee for non owner", async () => {
+      await expect(
+        sakuraSwap.connect(addr1).setImbalanceFee(scale(0.003))
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    })
+    it("Should revert setting base fee to same value", async () => {
+      await setImbalanceFee(sakuraSwap, scale(0.003));
+      await expect(
+        sakuraSwap.setImbalanceFee(scale(0.003))
+      ).to.be.revertedWith("Same as current value");
+    })
+  })
 
   describe("Swapping", () => {
     it("Should revert for unsupported token in", async () => {

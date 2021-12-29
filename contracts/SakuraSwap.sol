@@ -145,33 +145,25 @@ contract SakuraSwap is Ownable {
         uint256 amountIn,
         uint256 amountOut
     ) internal view returns (uint256) {
-        uint256 tokenInBalance = IERC20(tokenIn).balanceOf(address(this));
-        uint256 tokenInDifferenceBefore = _dif(
-            _virtualBalances[tokenIn],
-            tokenInBalance
-        );
-        uint256 tokenInDifferenceAfter = _dif(
-            _virtualBalances[tokenIn],
-            tokenInBalance + amountIn
-        );
-        uint256 tokenOutBalance = IERC20(tokenOut).balanceOf(address(this));
-        uint256 tokenOutDifferenceBefore = _dif(
-            _virtualBalances[tokenOut],
-            tokenOutBalance
-        );
-        uint256 tokenOutDifferenceAfter = _dif(
-            _virtualBalances[tokenOut],
-            tokenOutBalance - amountOut
-        );
-        uint256 totalBefore = tokenInDifferenceBefore +
-            tokenOutDifferenceBefore;
-        uint256 totalAfter = tokenInDifferenceAfter + tokenOutDifferenceAfter;
-        return _feeMultiplier(totalBefore, totalAfter);
+        uint256 inBalance = IERC20(tokenIn).balanceOf(address(this));
+        uint256 outBalance = IERC20(tokenOut).balanceOf(address(this));
+        uint256 inVirtual = _virtualBalances[tokenIn];
+        uint256 outVirtual = _virtualBalances[tokenOut];
+        return
+            _feeMultiplier(
+                _dif(inVirtual, inBalance) + _dif(outVirtual, outBalance),
+                _dif(inVirtual, inBalance + amountIn) +
+                    _dif(outVirtual, outBalance - amountOut)
+            );
     }
 
-    function _dif(uint256 a, uint256 b) private pure returns (uint256) {
-        if (b >= a) return 0;
-        return ((a - b) * 1e18) / a;
+    function _dif(uint256 virtualBalance, uint256 actualBalance)
+        private
+        pure
+        returns (uint256)
+    {
+        if (actualBalance >= virtualBalance) return 0;
+        return ((virtualBalance - actualBalance) * 1e18) / virtualBalance;
     }
 
     function _feeMultiplier(uint256 totalBefore, uint256 totalAfter)
